@@ -8,21 +8,27 @@ import FeedbackForm from "./pages/FeedbackForm";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 
-import "./index.css";
-
 function App() {
   return (
     <BrowserRouter>
 
-      <Header />
+      <div className="flex flex-col min-h-screen">
 
-      <Routes>
-        <Route path="/" element={<FeedbackForm />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Routes>
+        <Header />
 
-      <Footer />
+        <main className="flex-grow">
+
+          <Routes>
+            <Route path="/" element={<FeedbackForm />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Routes>
+
+        </main>
+
+        <Footer />
+
+      </div>
 
     </BrowserRouter>
   );
