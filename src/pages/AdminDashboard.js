@@ -5,27 +5,6 @@ import { signOut, onAuthStateChanged } from "firebase/auth";
 import questions from "../data/questions";
 import { useNavigate } from "react-router-dom";
 
-import {
-Chart as ChartJS,
-CategoryScale,
-LinearScale,
-BarElement,
-Title,
-Tooltip,
-Legend
-} from "chart.js";
-
-import { Bar } from "react-chartjs-2";
-
-ChartJS.register(
-CategoryScale,
-LinearScale,
-BarElement,
-Title,
-Tooltip,
-Legend
-);
-
 function AdminDashboard(){
 
 const [feedbacks,setFeedbacks] = useState([]);
@@ -103,48 +82,9 @@ fb.name.toLowerCase().includes(search.toLowerCase()) ||
 fb.enrollment.includes(search)
 );
 
-
-// calculate average ratings
-const calculateAverageRatings = () => {
-
-let totals = new Array(questions.length).fill(0);
-
-feedbacks.forEach((fb)=>{
-
-Object.entries(fb.ratings).forEach(([q,r])=>{
-
-totals[q]+=r;
-
-});
-
-});
-
-return totals.map(total =>
-feedbacks.length ? (total/feedbacks.length).toFixed(2) : 0
-);
-
-};
-
-const avgRatings = calculateAverageRatings();
-
-
-// chart data
-const data = {
-labels: questions,
-datasets: [
-{
-label: "Average Rating",
-data: avgRatings,
-backgroundColor: "rgba(59,130,246,0.7)"
-}
-]
-};
-
 return(
 
 <div className="max-w-7xl mx-auto mt-8 px-4">
-
-{/* Top Section */}
 
 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
 
@@ -156,7 +96,7 @@ Admin Dashboard
 
 <button
 onClick={downloadCSV}
-className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-500 transition"
 >
 Download CSV
 </button>
@@ -173,7 +113,7 @@ Logout
 </div>
 
 
-{/* Stats Card */}
+{/* Total Feedback */}
 
 <div className="bg-white shadow rounded-lg p-4 mb-6 text-center">
 
@@ -265,7 +205,7 @@ View
 
 {selected &&(
 
-<div className="bg-white shadow rounded-lg p-5 mb-6">
+<div className="bg-white shadow rounded-lg p-5">
 
 <h3 className="text-xl font-semibold mb-4">
 Feedback Details
@@ -292,23 +232,6 @@ Suggestions / Problems
 </div>
 
 )}
-
-
-{/* Chart Section */}
-
-<div className="bg-white shadow rounded-lg p-5">
-
-<h3 className="text-xl font-semibold mb-4">
-Feedback Analytics
-</h3>
-
-<div className="w-full max-w-5xl mx-auto">
-
-<Bar data={data}/>
-
-</div>
-
-</div>
 
 </div>
 
