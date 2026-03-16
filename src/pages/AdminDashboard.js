@@ -46,7 +46,7 @@ navigate("/admin-login");
 
 fetchFeedbacks();
 
-},[]);
+},[navigate]);
 
 const fetchFeedbacks = async () => {
 
