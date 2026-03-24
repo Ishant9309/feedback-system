@@ -34,7 +34,7 @@ const teachersData = {
     },
 
     "Third Year": {
-      "Semester 5": [
+      "Semester 6": [
         "Mrs. Pawar A.K (WMN)",
         "Ms. Manod P.S (ETI)",
         "Ms. Sawant K.B (MAN)",
