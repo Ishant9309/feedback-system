@@ -32,7 +32,7 @@ return id;
 
 const semesters = {
 "Second Year": ["Semester 4"],
-"Third Year": ["Semester 5"]
+"Third Year": ["Semester 6"]
 };
 
 const teachers =
