@@ -12,7 +12,7 @@ const teachersData = {
     },
 
     "Third Year": {
-      "Semester 5": [
+      "Semester 6": [
         "Mr. Unchadkar V.A (SFT)",
         "Ms. Manod P.S (ETI)",
         "Ms. Sawant K.B (MAN)",
