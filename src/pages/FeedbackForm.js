@@ -1,78 +1,125 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import questions from "../data/questions";
 import StarRating from "../components/StarRating";
+import teachersData from "../data/teachers";
 import { addDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { useNavigate } from "react-router-dom";
 
 function FeedbackForm() {
 
-const [ratings,setRatings] = useState({});
-const [name,setName] = useState("");
-const [enrollment,setEnrollment] = useState("");
 const [branch,setBranch] = useState("");
 const [year,setYear] = useState("");
 const [semester,setSemester] = useState("");
+
+const [currentTeacherIndex,setCurrentTeacherIndex] = useState(0);
+const [ratings,setRatings] = useState({});
+const [allTeacherRatings,setAllTeacherRatings] = useState({});
 const [suggestion,setSuggestion] = useState("");
 
+const navigate = useNavigate();
+const formTopRef = useRef(null);
+
+// DEVICE ID
+const getDeviceId = () => {
+let id = localStorage.getItem("deviceId");
+if(!id){
+id = Date.now().toString();
+localStorage.setItem("deviceId", id);
+}
+return id;
+};
+
 const semesters = {
-"First Year": ["Semester 1","Semester 2"],
-"Second Year": ["Semester 3","Semester 4"],
-"Third Year": ["Semester 5","Semester 6"]
+"Second Year": ["Semester 4"],
+"Third Year": ["Semester 5"]
 };
 
-const calculateMarks = () => {
+const teachers =
+branch && year && semester
+? teachersData[branch]?.[year]?.[semester] || []
+: [];
 
-const totalStars = Object.values(ratings).reduce((a,b)=>a+b,0);
-const maxStars = questions.length * 5;
+const currentTeacher = teachers[currentTeacherIndex];
 
-return ((totalStars/maxStars)*25).toFixed(2);
+// progress %
+const progress = teachers.length
+? ((currentTeacherIndex + 1) / teachers.length) * 100
+: 0;
 
-};
+// next teacher
+const handleNextTeacher = () => {
 
-const submitFeedback = async () => {
-
-if(!name || !enrollment || !branch || !year || !semester){
-alert("Please fill all fields");
+if(Object.keys(ratings).length !== questions.length){
+alert("Please rate all questions");
 return;
 }
 
+setAllTeacherRatings({
+...allTeacherRatings,
+[currentTeacher]: ratings
+});
+
+setRatings({});
+setCurrentTeacherIndex(currentTeacherIndex + 1);
+
+setTimeout(()=>{
+formTopRef.current?.scrollIntoView({ behavior: "smooth" });
+},100);
+
+};
+
+// submit
+const submitFeedback = async () => {
+
+if(Object.keys(ratings).length !== questions.length){
+alert("Please rate all questions");
+return;
+}
+
+const deviceId = getDeviceId();
+
 const q = query(
 collection(db,"feedbacks"),
-where("enrollment","==",enrollment)
+where("deviceId","==",deviceId)
 );
 
 const snapshot = await getDocs(q);
 
 if(!snapshot.empty){
-alert("You have already submitted feedback");
+alert("You have already submitted feedback from this device");
 return;
 }
 
-const marks = calculateMarks();
+const finalData = {
+...allTeacherRatings,
+[currentTeacher]: ratings
+};
 
 await addDoc(collection(db,"feedbacks"),{
-
-name,
-enrollment,
 branch,
 year,
 semester,
-ratings,
-marks,
+teachers: finalData,
 suggestion,
+deviceId,
 date:new Date()
-
 });
 
-alert("Feedback Submitted Successfully");
-
-setName("");
-setEnrollment("");
+// reset
 setBranch("");
 setYear("");
 setSemester("");
 setRatings({});
+setAllTeacherRatings({});
+setCurrentTeacherIndex(0);
 setSuggestion("");
+
+navigate("/success");
+
+setTimeout(()=>{
+formTopRef.current?.scrollIntoView({ behavior: "smooth" });
+},100);
 
 };
 
@@ -80,55 +127,52 @@ return(
 
 <div className="max-w-3xl mx-auto mt-10 px-4">
 
-<div className="bg-white shadow-lg rounded-xl p-6">
+<div ref={formTopRef} className="bg-white shadow-lg rounded-xl p-6">
 
 <h2 className="text-2xl font-bold text-center mb-6">
-Student Feedback Form
+Teacher Feedback System
 </h2>
 
-<input
-placeholder="Name"
-value={name}
-onChange={(e)=>setName(e.target.value)}
-className="w-full border rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-400"
-/>
-
-<input
-placeholder="Enrollment Number"
-value={enrollment}
-onChange={(e)=>setEnrollment(e.target.value)}
-className="w-full border rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-400"
-/>
-
-<input
-placeholder="Branch"
+{/* Branch */}
+<select
 value={branch}
-onChange={(e)=>setBranch(e.target.value)}
-className="w-full border rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-400"
-/>
+onChange={(e)=>{
+setBranch(e.target.value);
+setYear("");
+setSemester("");
+setCurrentTeacherIndex(0);
+}}
+className="w-full border rounded-lg p-2 mb-4"
+>
+<option value="">Select Branch</option>
+<option value="Computer Engineering">Computer Engineering</option>
+<option value="Information Technology">Information Technology</option>
+</select>
 
+{/* Year */}
 <select
 value={year}
 onChange={(e)=>{
 setYear(e.target.value);
 setSemester("");
+setCurrentTeacherIndex(0);
 }}
 className="w-full border rounded-lg p-2 mb-4"
 >
-
 <option value="">Select Year</option>
-<option value="First Year">First Year</option>
 <option value="Second Year">Second Year</option>
 <option value="Third Year">Third Year</option>
-
 </select>
 
+{/* Semester */}
 <select
 value={semester}
-onChange={(e)=>setSemester(e.target.value)}
+onChange={(e)=>{
+setSemester(e.target.value);
+setCurrentTeacherIndex(0);
+}}
 className="w-full border rounded-lg p-2 mb-6"
 >
-
 <option value="">Select Semester</option>
 
 {year && semesters[year].map((sem,i)=>(
@@ -137,16 +181,36 @@ className="w-full border rounded-lg p-2 mb-6"
 
 </select>
 
-<h3 className="text-xl font-semibold mb-4">
-Feedback Questions
+{/* ⭐ PROGRESS INDICATOR */}
+{currentTeacher && (
+<div className="mb-6">
+
+<p className="text-sm font-semibold mb-1">
+Teacher {currentTeacherIndex + 1} of {teachers.length}
+</p>
+
+<div className="w-full bg-gray-200 rounded-full h-3">
+<div
+className="bg-blue-600 h-3 rounded-full transition-all"
+style={{ width: `${progress}%` }}
+></div>
+</div>
+
+</div>
+)}
+
+{/* Teacher Feedback */}
+{currentTeacher && (
+
+<div>
+
+<h3 className="text-xl font-semibold mb-4 text-blue-700">
+Feedback for {currentTeacher}
 </h3>
 
 {questions.map((q,index)=>(
 
-<div
-key={index}
-className="border rounded-lg p-4 mb-4 bg-gray-50"
->
+<div key={index} className="border rounded-lg p-4 mb-4 bg-gray-50">
 
 <p className="font-medium mb-2">
 Q{index+1}. {q}
@@ -163,26 +227,40 @@ setRatings({...ratings,[index]:value})
 
 ))}
 
-<h3 className="text-xl font-semibold mt-6 mb-3">
-Suggestions / Improvements / Problems
+<h3 className="text-lg font-semibold mt-6 mb-2">
+Any Improvements / Suggestions
 </h3>
 
 <textarea
-placeholder="Write your suggestions or problems here..."
+placeholder="Write your suggestions here..."
 value={suggestion}
 onChange={(e)=>setSuggestion(e.target.value)}
-rows="4"
-className="w-full border rounded-lg p-2 mb-6 focus:ring-2 focus:ring-blue-400"
+className="w-full border rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-400"
 />
+
+{currentTeacherIndex < teachers.length - 1 ? (
+
+<button
+onClick={handleNextTeacher}
+className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+>
+Next Teacher
+</button>
+
+) : (
 
 <button
 onClick={submitFeedback}
-className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
 >
-
 Submit Feedback
-
 </button>
+
+)}
+
+</div>
+
+)}
 
 </div>
 

@@ -9,18 +9,18 @@ function AdminDashboard(){
 
 const [feedbacks,setFeedbacks] = useState([]);
 const [selected,setSelected] = useState(null);
-const [search,setSearch] = useState("");
+
+const [branchFilter,setBranchFilter] = useState("");
+const [yearFilter,setYearFilter] = useState("");
 
 const navigate = useNavigate();
 
 useEffect(()=>{
 
 onAuthStateChanged(auth,(user)=>{
-
 if(!user){
 navigate("/admin-login");
 }
-
 });
 
 fetchFeedbacks();
@@ -44,48 +44,100 @@ setFeedbacks(list);
 
 // logout
 const logout = async ()=>{
-
 await signOut(auth);
 navigate("/admin-login");
-
 };
 
 
 // CSV download
 const downloadCSV = () => {
 
-let csv = "Name,Enrollment,Branch,Year,Semester,Marks\n";
+let csv = "Branch,Year,Semester,Teacher,Question,Rating\n";
 
 feedbacks.forEach((fb)=>{
 
-csv += `${fb.name},${fb.enrollment},${fb.branch},${fb.year},${fb.semester},${fb.marks}\n`;
+Object.entries(fb.teachers || {}).forEach(([teacher,ratings])=>{
+
+Object.entries(ratings).forEach(([qIndex,rate])=>{
+
+csv += `${fb.branch},${fb.year},${fb.semester},${teacher},Q${parseInt(qIndex)+1},${rate}\n`;
+
+});
+
+});
 
 });
 
 const blob = new Blob([csv],{type:"text/csv"});
-
 const url = window.URL.createObjectURL(blob);
 
 const a = document.createElement("a");
-
 a.href = url;
-a.download = "feedback_report.csv";
-
+a.download = "teacher_feedback_report.csv";
 a.click();
 
 };
 
 
-// search filter
-const filteredFeedback = feedbacks.filter((fb)=>
-fb.name.toLowerCase().includes(search.toLowerCase()) ||
-fb.enrollment.includes(search)
+// ⭐ Average
+const getAverage = (ratings) => {
+const values = Object.values(ratings);
+const total = values.reduce((a,b)=>a+b,0);
+return values.length ? (total / values.length).toFixed(2) : 0;
+};
+
+
+// ⭐ Marks
+const calculateMarks = (ratings) => {
+const total = Object.values(ratings).reduce((a,b)=>a+b,0);
+const max = questions.length * 5;
+return ((total / max) * 25).toFixed(2);
+};
+
+
+// 🔥 FILTERED DATA
+const filteredFeedbacks = feedbacks.filter(fb =>
+(!branchFilter || fb.branch === branchFilter) &&
+(!yearFilter || fb.year === yearFilter)
 );
+
+
+// 🔥 LEADERBOARD LOGIC
+const calculateLeaderboard = () => {
+
+let teacherMap = {};
+
+filteredFeedbacks.forEach(fb => {
+Object.entries(fb.teachers || {}).forEach(([teacher,ratings]) => {
+
+const avg = parseFloat(getAverage(ratings));
+
+if(!teacherMap[teacher]){
+teacherMap[teacher] = { total: 0, count: 0 };
+}
+
+teacherMap[teacher].total += avg;
+teacherMap[teacher].count += 1;
+
+});
+});
+
+const result = Object.entries(teacherMap).map(([teacher,data]) => ({
+teacher,
+avg: (data.total / data.count).toFixed(2)
+}));
+
+return result.sort((a,b)=>b.avg - a.avg).slice(0,3);
+
+};
+
+const leaderboard = calculateLeaderboard();
 
 return(
 
 <div className="max-w-7xl mx-auto mt-8 px-4">
 
+{/* Header */}
 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
 
 <h2 className="text-2xl font-bold text-gray-800">
@@ -96,14 +148,14 @@ Admin Dashboard
 
 <button
 onClick={downloadCSV}
-className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-500 transition"
+className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-500"
 >
 Download CSV
 </button>
 
 <button
 onClick={logout}
-className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
 >
 Logout
 </button>
@@ -113,81 +165,102 @@ Logout
 </div>
 
 
-{/* Total Feedback */}
+{/* Filters */}
+<div className="flex gap-3 mb-6">
 
-<div className="bg-white shadow rounded-lg p-4 mb-6 text-center">
+<select
+value={branchFilter}
+onChange={(e)=>setBranchFilter(e.target.value)}
+className="border p-2 rounded"
+>
+<option value="">All Branch</option>
+<option value="Computer Engineering">Computer Engineering</option>
+<option value="Information Technology">Information Technology</option>
+</select>
 
-<h3 className="text-gray-500">
-Total Feedback
+<select
+value={yearFilter}
+onChange={(e)=>setYearFilter(e.target.value)}
+className="border p-2 rounded"
+>
+<option value="">All Year</option>
+<option value="Second Year">Second Year</option>
+<option value="Third Year">Third Year</option>
+</select>
+
+</div>
+
+
+{/* Leaderboard */}
+<div className="bg-white shadow rounded-lg p-4 mb-6">
+
+<h3 className="text-lg font-semibold mb-3">
+🏆 Top 3 Teachers
 </h3>
 
+{leaderboard.length === 0 ? (
+<p>No data available</p>
+) : (
+leaderboard.map((t,i)=>(
+<p key={i} className="font-semibold">
+
+{i===0 && "🥇 "}
+{i===1 && "🥈 "}
+{i===2 && "🥉 "}
+
+{t.teacher} → ⭐ {t.avg}
+
+</p>
+))
+)}
+
+</div>
+
+
+{/* Total Feedback */}
+<div className="bg-white shadow rounded-lg p-4 mb-6 text-center">
+
+<h3>Total Feedback</h3>
 <p className="text-3xl font-bold text-blue-600">
-{feedbacks.length}
+{filteredFeedbacks.length}
 </p>
 
 </div>
 
 
-{/* Search */}
-
-<div className="mb-6">
-
-<input
-placeholder="Search by Name or Enrollment"
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-className="w-full md:w-96 border rounded-lg p-2 focus:ring-2 focus:ring-blue-400"
-/>
-
-</div>
-
-
 {/* Table */}
-
 <div className="bg-white shadow rounded-lg overflow-x-auto mb-6">
 
 <table className="w-full">
 
 <thead className="bg-blue-900 text-white">
-
 <tr>
-<th className="p-3">Name</th>
-<th className="p-3">Enrollment</th>
-<th className="p-3">Branch</th>
-<th className="p-3">Year</th>
-<th className="p-3">Semester</th>
-<th className="p-3">Marks</th>
-<th className="p-3">Action</th>
+<th>Branch</th>
+<th>Year</th>
+<th>Semester</th>
+<th>Teachers</th>
+<th>Action</th>
 </tr>
-
 </thead>
 
 <tbody>
 
-{filteredFeedback.map((fb,index)=>(
+{filteredFeedbacks.map((fb,index)=>(
 
-<tr key={index} className="text-center border-b hover:bg-gray-100">
+<tr key={index} className="text-center border-b">
 
-<td className="p-3">{fb.name}</td>
-<td className="p-3">{fb.enrollment}</td>
-<td className="p-3">{fb.branch}</td>
-<td className="p-3">{fb.year}</td>
-<td className="p-3">{fb.semester}</td>
-<td className="p-3 font-semibold text-blue-600">
-{fb.marks}/25
-</td>
+<td>{fb.branch}</td>
+<td>{fb.year}</td>
+<td>{fb.semester}</td>
+<td>{Object.keys(fb.teachers || {}).length}</td>
 
-<td className="p-3">
-
+<td>
 <button
 onClick={()=>setSelected(fb)}
-className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+className="bg-blue-600 text-white px-2 py-1 rounded"
 >
-
 View
-
 </button>
-
 </td>
 
 </tr>
@@ -201,33 +274,34 @@ View
 </div>
 
 
-{/* Feedback Details */}
-
+{/* Details */}
 {selected &&(
 
-<div className="bg-white shadow rounded-lg p-5">
+<div className="bg-white shadow rounded-lg p-5 mb-6">
 
-<h3 className="text-xl font-semibold mb-4">
-Feedback Details
-</h3>
+<div className="flex justify-between mb-4">
+<h3>Teacher-wise Feedback</h3>
+<button onClick={()=>setSelected(null)}>Close ✖</button>
+</div>
 
-{questions.map((q,i)=>(
+{Object.entries(selected.teachers || {}).map(([teacher,ratings],i)=>(
 
-<p key={i} className="mb-2">
+<div key={i} className="mb-4">
 
-<b>{q}</b> : ⭐ {selected.ratings[i]}
+<h4>{teacher}</h4>
 
-</p>
+<p>⭐ {getAverage(ratings)}</p>
+<p>Marks: {calculateMarks(ratings)} / 25</p>
+
+</div>
 
 ))}
 
-<h4 className="mt-4 font-semibold">
-Suggestions / Problems
-</h4>
-
-<p className="text-gray-700 mt-1">
-{selected.suggestion ? selected.suggestion : "No suggestion given"}
-</p>
+{selected.suggestion && (
+<div className="mt-3 bg-gray-100 p-3 rounded">
+{selected.suggestion}
+</div>
+)}
 
 </div>
 
