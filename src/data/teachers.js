@@ -29,7 +29,7 @@ const teachersData = {
         "Mr. Unchadkar V.A (Java)",
         "Ms. Arbad M.P (EVS)",
         "Mrs. Pawar A.K (DCN)",
-        "Mrs. More A.K (INS)"
+        "Mrs. More M.K (INS)"
       ]
     },
 
